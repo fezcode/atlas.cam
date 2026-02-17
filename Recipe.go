@@ -1,6 +1,5 @@
 //go:build ignore
-
-package main
+package bake_recipe
 
 import (
 	"fmt"
@@ -9,9 +8,10 @@ import (
 	"github.com/fezcode/gobake"
 )
 
-func main() {
-	bake := gobake.NewEngine()
-	bake.LoadRecipeInfo("recipe.piml")
+func Run(bake *gobake.Engine) error {
+	if err := bake.LoadRecipeInfo("recipe.piml"); err != nil {
+		return err
+	}
 
 	// Helper function to build a specific target
 	buildTarget := func(ctx *gobake.Context, osName, arch string) error {
@@ -40,9 +40,9 @@ func main() {
 		ctx.Log("Baking %s/%s -> %s", osName, arch, output)
 		if err := ctx.BakeBinary(osName, arch, output); err != nil {
 			ctx.Log("Warning: Failed to build for %s/%s: %v", osName, arch, err)
-			// We return nil to allow other targets in a batch to proceed, 
+			// We return nil to allow other targets in a batch to proceed,
 			// but we logged the warning.
-			return nil 
+			return nil
 		}
 		return nil
 	}
@@ -71,7 +71,7 @@ func main() {
 	bake.Task("build", "Builds for all supported platforms", func(ctx *gobake.Context) error {
 		ctx.Log("Building %s v%s for ALL platforms...", bake.Info.Name, bake.Info.Version)
 		ctx.Mkdir("build")
-		
+
 		// Run all build steps
 		buildTarget(ctx, "linux", "amd64")
 		buildTarget(ctx, "linux", "arm64")
@@ -79,7 +79,7 @@ func main() {
 		buildTarget(ctx, "windows", "arm64")
 		buildTarget(ctx, "darwin", "amd64")
 		buildTarget(ctx, "darwin", "arm64")
-		
+
 		return nil
 	})
 
@@ -87,5 +87,5 @@ func main() {
 		return ctx.Remove("build")
 	})
 
-	bake.Execute()
+	return nil
 }
