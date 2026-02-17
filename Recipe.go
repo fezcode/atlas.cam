@@ -3,6 +3,9 @@
 package main
 
 import (
+	"fmt"
+	"runtime"
+
 	"github.com/fezcode/gobake"
 )
 
@@ -10,49 +13,73 @@ func main() {
 	bake := gobake.NewEngine()
 	bake.LoadRecipeInfo("recipe.piml")
 
-	bake.Task("build", "Builds the binary for multiple platforms", func(ctx *gobake.Context) error {
-		ctx.Log("Building %s v%s...", bake.Info.Name, bake.Info.Version)
-		
-		targets := []struct {
-			os   string
-			arch string
-		}{
-			{"linux", "amd64"},
-			{"linux", "arm64"},
-			{"windows", "amd64"},
-			{"windows", "arm64"},
-			{"darwin", "amd64"},
-			{"darwin", "arm64"},
+	// Helper function to build a specific target
+	buildTarget := func(ctx *gobake.Context, osName, arch string) error {
+		output := fmt.Sprintf("build/%s-%s-%s", bake.Info.Name, osName, arch)
+		if osName == "windows" {
+			output += ".exe"
 		}
 
-		err := ctx.Mkdir("build")
-		if err != nil {
-			return err
-		}
-
-		for _, t := range targets {
-			output := "build/" + bake.Info.Name + "-" + t.os + "-" + t.arch
-			if t.os == "windows" {
-				output += ".exe"
-			}
-			
-			// For atlas.cam, we try to build without CGO to allow cross-compilation where possible.
-			// Note: Some camera drivers might require CGO (e.g. on macOS), so those builds might fail or have limited functionality.
-			// Windows (MediaFoundation) often requires CGO with MinGW if not using pure Go impl.
-			// Actually pion/mediadevices requires CGO for camera on Windows.
-			if t.os == "windows" {
-				// Assumes host has C compiler (MinGW)
+		// Configure CGO
+		// Windows: Requires CGO for MediaFoundation (needs MinGW on host)
+		if osName == "windows" {
+			ctx.Env = []string{"CGO_ENABLED=1"}
+		} else if osName == "darwin" {
+			// macOS: Requires CGO for AVFoundation
+			// Only enable if we are actually building ON macOS
+			if runtime.GOOS == "darwin" {
 				ctx.Env = []string{"CGO_ENABLED=1"}
 			} else {
 				ctx.Env = []string{"CGO_ENABLED=0"}
 			}
-			
-			// We log but don't fail immediately on individual target errors to allow partial success
-			err := ctx.BakeBinary(t.os, t.arch, output)
-			if err != nil {
-				ctx.Log("Warning: Failed to build for %s/%s: %v", t.os, t.arch, err)
-			}
+		} else {
+			// Linux/Other: Default to 0 for static binary portability
+			ctx.Env = []string{"CGO_ENABLED=0"}
 		}
+
+		ctx.Log("Baking %s/%s -> %s", osName, arch, output)
+		if err := ctx.BakeBinary(osName, arch, output); err != nil {
+			ctx.Log("Warning: Failed to build for %s/%s: %v", osName, arch, err)
+			// We return nil to allow other targets in a batch to proceed, 
+			// but we logged the warning.
+			return nil 
+		}
+		return nil
+	}
+
+	bake.Task("build:linux", "Builds for Linux (amd64, arm64)", func(ctx *gobake.Context) error {
+		ctx.Mkdir("build")
+		buildTarget(ctx, "linux", "amd64")
+		buildTarget(ctx, "linux", "arm64")
+		return nil
+	})
+
+	bake.Task("build:windows", "Builds for Windows (amd64, arm64)", func(ctx *gobake.Context) error {
+		ctx.Mkdir("build")
+		buildTarget(ctx, "windows", "amd64")
+		buildTarget(ctx, "windows", "arm64")
+		return nil
+	})
+
+	bake.Task("build:darwin", "Builds for macOS (amd64, arm64)", func(ctx *gobake.Context) error {
+		ctx.Mkdir("build")
+		buildTarget(ctx, "darwin", "amd64")
+		buildTarget(ctx, "darwin", "arm64")
+		return nil
+	})
+
+	bake.Task("build", "Builds for all supported platforms", func(ctx *gobake.Context) error {
+		ctx.Log("Building %s v%s for ALL platforms...", bake.Info.Name, bake.Info.Version)
+		ctx.Mkdir("build")
+		
+		// Run all build steps
+		buildTarget(ctx, "linux", "amd64")
+		buildTarget(ctx, "linux", "arm64")
+		buildTarget(ctx, "windows", "amd64")
+		buildTarget(ctx, "windows", "arm64")
+		buildTarget(ctx, "darwin", "amd64")
+		buildTarget(ctx, "darwin", "arm64")
+		
 		return nil
 	})
 

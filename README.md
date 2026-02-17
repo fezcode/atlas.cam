@@ -4,6 +4,9 @@
 
 **atlas.cam** is a terminal-based webcam viewer and ASCII camera. Part of the **Atlas Suite**, it brings the retro-futuristic vibe of ASCII art to your video feed with real-time edge detection and GIF recording capabilities.
 
+![Example Output](./example.jpg)
+Me pointing my finger at you! (maybe a gun, I don't know)
+
 ![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
@@ -54,12 +57,21 @@ Photos and GIFs are saved in your user's Pictures folder:
 
 ## 🏗️ Building
 
-This project uses **gobake** for orchestration.
+This project uses **gobake** for orchestration. You can build for all platforms or specific targets:
 
 ```bash
-# Build for current platform
+# Build for all platforms
 gobake build
+
+# Build for specific OS
+gobake build:windows
+gobake build:linux
+gobake build:darwin
 ```
+
+### ⚠️ Compatibility Note for macOS
+
+On macOS, accessing the webcam requires **AVFoundation**, which uses CGO. You **must** build from source on a Mac with Xcode command line tools installed. The build recipe automatically handles CGO enabling when running on macOS.
 
 ## 📄 License
 MIT License - see [LICENSE](LICENSE) for details.
