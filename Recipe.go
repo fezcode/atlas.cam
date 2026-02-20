@@ -3,8 +3,6 @@ package bake_recipe
 
 import (
 	"fmt"
-	"runtime"
-
 	"github.com/fezcode/gobake"
 )
 
@@ -13,73 +11,45 @@ func Run(bake *gobake.Engine) error {
 		return err
 	}
 
-	// Helper function to build a specific target
-	buildTarget := func(ctx *gobake.Context, osName, arch string) error {
-		output := fmt.Sprintf("build/%s-%s-%s", bake.Info.Name, osName, arch)
-		if osName == "windows" {
-			output += ".exe"
+	bake.Task("build", "Builds the binary for multiple platforms", func(ctx *gobake.Context) error {
+		ctx.Log("Building %s v%s...", bake.Info.Name, bake.Info.Version)
+
+		targets := []struct {
+			os   string
+			arch string
+		}{
+			{"linux", "amd64"},
+			{"linux", "arm64"},
+			{"windows", "amd64"},
+			{"windows", "arm64"},
+			{"darwin", "amd64"},
+			{"darwin", "arm64"},
 		}
 
-		// Configure CGO
-		// Windows: Requires CGO for MediaFoundation (needs MinGW on host)
-		if osName == "windows" {
-			ctx.Env = []string{"CGO_ENABLED=1"}
-		} else if osName == "darwin" {
-			// macOS: Requires CGO for AVFoundation
-			// Only enable if we are actually building ON macOS
-			if runtime.GOOS == "darwin" {
-				ctx.Env = []string{"CGO_ENABLED=1"}
-			} else {
-				ctx.Env = []string{"CGO_ENABLED=0"}
+		err := ctx.Mkdir("build")
+		if err != nil {
+			return err
+		}
+
+		ldflags := fmt.Sprintf("-X main.Version=%s", bake.Info.Version)
+
+		for _, t := range targets {
+			output := "build/" + bake.Info.Name + "-" + t.os + "-" + t.arch
+			if t.os == "windows" {
+				output += ".exe"
 			}
-		} else {
-			// Linux/Other: Default to 0 for static binary portability
-			ctx.Env = []string{"CGO_ENABLED=0"}
+
+			ctx.Env = []string{
+				"CGO_ENABLED=0",
+				"GOOS=" + t.os,
+				"GOARCH=" + t.arch,
+			}
+			
+			err := ctx.Run("go", "build", "-ldflags", ldflags, "-o", output, ".")
+			if err != nil {
+				return err
+			}
 		}
-
-		ctx.Log("Baking %s/%s -> %s", osName, arch, output)
-		if err := ctx.BakeBinary(osName, arch, output); err != nil {
-			ctx.Log("Warning: Failed to build for %s/%s: %v", osName, arch, err)
-			// We return nil to allow other targets in a batch to proceed,
-			// but we logged the warning.
-			return nil
-		}
-		return nil
-	}
-
-	bake.Task("build:linux", "Builds for Linux (amd64, arm64)", func(ctx *gobake.Context) error {
-		ctx.Mkdir("build")
-		buildTarget(ctx, "linux", "amd64")
-		buildTarget(ctx, "linux", "arm64")
-		return nil
-	})
-
-	bake.Task("build:windows", "Builds for Windows (amd64, arm64)", func(ctx *gobake.Context) error {
-		ctx.Mkdir("build")
-		buildTarget(ctx, "windows", "amd64")
-		buildTarget(ctx, "windows", "arm64")
-		return nil
-	})
-
-	bake.Task("build:darwin", "Builds for macOS (amd64, arm64)", func(ctx *gobake.Context) error {
-		ctx.Mkdir("build")
-		buildTarget(ctx, "darwin", "amd64")
-		buildTarget(ctx, "darwin", "arm64")
-		return nil
-	})
-
-	bake.Task("build", "Builds for all supported platforms", func(ctx *gobake.Context) error {
-		ctx.Log("Building %s v%s for ALL platforms...", bake.Info.Name, bake.Info.Version)
-		ctx.Mkdir("build")
-
-		// Run all build steps
-		buildTarget(ctx, "linux", "amd64")
-		buildTarget(ctx, "linux", "arm64")
-		buildTarget(ctx, "windows", "amd64")
-		buildTarget(ctx, "windows", "arm64")
-		buildTarget(ctx, "darwin", "amd64")
-		buildTarget(ctx, "darwin", "arm64")
-
 		return nil
 	})
 
