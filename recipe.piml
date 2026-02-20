@@ -1,4 +1,4 @@
 (name) atlas.cam
-(version) 0.1.0
-(description) Terminal Webcam & ASCII Camera.
+(version) 0.1.1
+(description) Terminal webcam viewer and ASCII camera.
 (license) MIT
