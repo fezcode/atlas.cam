@@ -39,9 +39,13 @@ const (
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#D4AF37")).MarginBottom(1)
-	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+	amber = lipgloss.Color("#FFB642")
+	onyx  = lipgloss.Color("#050505")
+	grey  = lipgloss.Color("#626262")
+
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(amber).MarginBottom(1)
+	statusStyle = lipgloss.NewStyle().Foreground(grey)
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5F87"))
 )
 
 // --- Image Processing ---
