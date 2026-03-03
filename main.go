@@ -852,6 +852,14 @@ func main() {
 		fmt.Printf("atlas.cam v%s\n", Version)
 		return
 	}
+	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help") {
+		fmt.Println("Atlas Cam - Terminal webcam viewer and ASCII camera.")
+		fmt.Println("\nUsage:")
+		fmt.Println("  atlas.cam        Start the camera viewer")
+		fmt.Println("  atlas.cam -v     Show version")
+		fmt.Println("  atlas.cam -h     Show this help")
+		return
+	}
 
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
